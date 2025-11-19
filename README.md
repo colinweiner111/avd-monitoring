@@ -1,434 +1,451 @@
-CONCDSYS-72cb.ad4.sfgov.org# Azure Virtual Desktop Network Monitoring Guide
+# AVD Network Monitoring - Quick Start Guide
 
 ## Overview
 
-This guide provides tools and procedures for diagnosing intermittent Azure Virtual Desktop (AVD) connectivity issues, particularly `ShortpathTransportNetworkDrop` errors that indicate UDP-based RDP Shortpath failures.
+This guide covers everything you need to get the AVD network monitoring scripts up and running quickly.
 
-**Problem:** Users experiencing intermittent AVD disconnections with errors like:
-- `ShortpathTransportNetworkDrop` (Code 68)
-- `ReverseConnectDnsLookupFailed` (Code 39)
-- `GraphicsSubsystemFailed` (Code 4399)
+**Time to setup:** 5-10 minutes  
+**Scripts included:** 
+- Monitor-AVDConnection.ps1 (client-side monitoring)
+- Simulate-AVDUserTraffic.ps1 (workload simulation)
+- Test-MonitoringScript.ps1 (validation)
 
-**Solution:** Client-side network monitoring to identify root causes.
+### Key Features
 
----
+**Monitor-AVDConnection.ps1** tracks:
+- Ping latency and packet loss
+- DNS resolution time  
+- TCP port connectivity
+- Network adapter errors
+- WiFi signal strength
+- **NEW: Connection Quality Score** (optional 0-100 rating)
 
-## Table of Contents
-
-1. [Quick Start](#quick-start)
-2. [Scripts Included](#scripts-included)
-3. [Installation](#installation)
-4. [Basic Usage](#basic-usage)
-5. [Testing Scenarios](#testing-scenarios)
-6. [Analyzing Results](#analyzing-results)
-7. [Troubleshooting](#troubleshooting)
-8. [Advanced Usage](#advanced-usage)
-9. [FAQ](#faq)
-
----
-
-## Quick Start
-
-### 5-Minute Setup
-
-1. **Download the scripts** to your client machine
-2. **Find your AVD session host FQDN** from Azure Log Analytics (WVDConnections table)
-3. **Run the monitor:**
-
+**To enable Quality Score, add `-IncludeQualityScore` parameter:**
 ```powershell
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IncludeQualityScore
 ```
 
-4. **Use AVD normally** or run traffic simulation
-5. **Review the CSV log** when issues occur
-
 ---
 
-## Scripts Included
+## Prerequisites Check
 
-### 1. Monitor-AVDConnection.ps1 (Primary Tool)
+### System Requirements
 
-**Purpose:** Continuous network monitoring from the client side
+| Requirement | Minimum | How to Check |
+|-------------|---------|--------------|
+| **Operating System** | Windows 10/11 or Windows Server 2016+ | `systeminfo \| findstr /B /C:"OS Name"` |
+| **PowerShell Version** | 5.1 or higher | `$PSVersionTable.PSVersion` |
+| **Network Connectivity** | Internet access | `Test-NetConnection 8.8.8.8` |
+| **Disk Space** | 50 MB free | Check Desktop or C:\ drive |
+| **Permissions** | Standard user (Admin recommended) | Run PowerShell normally |
 
-**What it monitors:**
-- ICMP ping latency and packet loss
-- TCP port 3389 (RDP) connectivity
-- DNS resolution time
-- Network adapter statistics and errors
-- WiFi signal strength (if wireless)
-- Jitter detection (latency variance)
+### Quick Pre-Flight Check
 
-**Output:** Real-time console display + CSV log file
+Run this command to validate your environment:
 
-### 2. Test-MonitoringScript.ps1
+```powershell
+# Check PowerShell version
+$PSVersionTable.PSVersion
 
-**Purpose:** Pre-flight validation before running the monitor
+# Output should show:
+# Major  Minor  Build  Revision
+# 5      1      xxxxx  xxxx     (or higher)
+```
 
-**What it checks:**
-- PowerShell version compatibility
-- Required cmdlets availability
-- Network adapter detection
-- Basic connectivity
-- File write permissions
-
-**Use when:** Setting up for the first time
-
-### 3. Simulate-AVDUserTraffic.ps1
-
-**Purpose:** Generate realistic user workload patterns for testing
-
-**What it simulates:**
-- Web browsing (HTTP/HTTPS traffic)
-- File operations (create, read, copy, delete)
-- CPU load (Office-like applications)
-- Memory usage (large documents)
-- Video streaming (high bandwidth)
-- UI activity (window operations)
-
-**Use when:** Testing in controlled conditions
-
-### 4. Simulate-NetworkStress.ps1
-
-**Purpose:** Create network stress conditions to test detection
-
-**What it generates:**
-- High bandwidth consumption
-- Connection bursts
-- DNS query floods
-- Concurrent connections
-
-**Use when:** Forcing issues to validate monitoring
-
-### 5. Deploy-Test-VM.ps1 / Deploy-Test-VM.sh
-
-**Purpose:** Quick Azure VM deployment for testing RDP connectivity
-
-**Use when:** Need a test target with RDP enabled
+If version is 5.1+, you're good to go!
 
 ---
 
 ## Installation
 
-### Prerequisites
+### Step 1: Download the Scripts
 
-- **Windows 10/11** or **Windows Server 2016+**
-- **PowerShell 5.1+** (built into Windows)
-- **Administrator privileges** (recommended, not required)
-- **Network connectivity** to AVD session hosts
+Download all scripts to a local folder:
 
-### Setup Steps
+**Recommended location:** `C:\AVDMonitoring`
 
-1. **Download all scripts** to a folder (e.g., `C:\AVDMonitoring`)
+**Files needed:**
+- Monitor-AVDConnection.ps1
+- Simulate-AVDUserTraffic.ps1
+- Test-MonitoringScript.ps1
 
-2. **Unblock the scripts** (if downloaded from the internet):
-   ```powershell
-   Get-ChildItem -Path C:\AVDMonitoring\*.ps1 | Unblock-File
-   ```
+### Step 2: Unblock the Scripts
 
-3. **Set execution policy** (if needed):
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-   ```
+PowerShell blocks downloaded scripts by default. Unblock them:
 
-4. **Validate setup:**
-   ```powershell
-   cd C:\AVDMonitoring
-   .\Test-MonitoringScript.ps1
-   ```
+```powershell
+# Navigate to your folder
+cd C:\AVDMonitoring
+
+# Unblock all PowerShell scripts
+Get-ChildItem -Path . -Filter *.ps1 | Unblock-File
+
+# Verify they're unblocked (should show no output)
+Get-ChildItem -Path . -Filter *.ps1 | Get-Item -Stream Zone.Identifier
+```
+
+### Step 3: Set Execution Policy (If Needed)
+
+If you get "running scripts is disabled" error:
+
+```powershell
+# Option A: For current session only (safest)
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+
+# Option B: For current user (persists)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### Step 4: Validate Setup
+
+Run the validation script:
+
+```powershell
+.\Test-MonitoringScript.ps1
+```
+
+**Expected output:**
+```
+✓ PowerShell 5.1 - OK
+✓ Test-Connection
+✓ Test-NetConnection
+✓ Get-NetAdapter
+✓ Get-NetAdapterStatistics
+✓ Network connectivity OK
+✓ Can write to Desktop
+✓ ALL CHECKS PASSED
+```
+
+If all checks pass, you're ready to go!
 
 ---
 
-## Basic Usage
+## Getting Your Session Host FQDN
 
-### Scenario 1: Monitor Production AVD Environment
+Before running the monitor, you need your AVD session host FQDN.
 
-**Objective:** Track network conditions during normal user activity
+### Option 1: From Azure Log Analytics (Recommended)
 
-**Steps:**
+```kusto
+WVDConnections
+| where TimeGenerated > ago(7d)
+| where UserName == "affected.user@domain.com"
+| distinct SessionHostName
+```
 
-1. **Get your session host FQDN** from Log Analytics:
-   ```kusto
-   WVDConnections
-   | where TimeGenerated > ago(7d)
-   | where UserName == "affected-user@domain.com"
-   | project SessionHostName
-   | distinct SessionHostName
-   ```
+**Example output:** `host.domain.com`
 
-2. **Start monitoring:**
-   ```powershell
-   .\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
-   ```
+### Option 2: From Azure Portal
 
-3. **Let it run** during work hours (or all day)
+1. Go to Azure Portal → Virtual Desktop
+2. Select your Host Pool
+3. Click "Session hosts"
+4. Copy the Name (FQDN) of any session host
 
-4. **When disconnection occurs:**
-   - Note the exact time
-   - Stop the script (Ctrl+C)
-   - Open the CSV log on your Desktop
-
-5. **Analyze the log** around the disconnection timestamp
-
-### Scenario 2: Quick Validation Test
-
-**Objective:** Verify the script works before deploying
-
-**Steps:**
-
-1. **Run pre-flight check:**
-   ```powershell
-   .\Test-MonitoringScript.ps1
-   ```
-
-2. **Test against any reachable host:**
-   ```powershell
-   .\Monitor-AVDConnection.ps1 -SessionHostFQDN "microsoft.com" -IntervalSeconds 10
-   ```
-
-3. **Let it run for 2-3 minutes**
-
-4. **Verify CSV log created** on Desktop with data
-
-5. **Stop and review** (Ctrl+C)
-
-### Scenario 3: Controlled Testing with Traffic Simulation
-
-**Objective:** Reproduce issues in a controlled environment
-
-**Steps:**
-
-1. **Window 1 - Start monitoring:**
-   ```powershell
-   .\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com" -IntervalSeconds 15 -AlertOnFailure
-   ```
-
-2. **Window 2 - Connect to AVD session and run traffic simulation:**
-   ```powershell
-   # Inside AVD session
-   .\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Mixed -IncludeVideo
-   ```
-
-3. **Monitor both windows** for issues
-
-4. **Review logs** after completion
+**Example output:** `host.domain.com`
 
 ---
 
-## Testing Scenarios
+## Running the Scripts
 
-### Light Testing (15-30 minutes)
+### Scenario 1: Monitor Real User (Production)
 
-**Purpose:** Basic validation and baseline establishment
+**Use case:** Troubleshoot active user experiencing disconnects
 
+**Setup:**
+
+**On user's laptop/client machine:**
+
+**Basic monitoring:**
 ```powershell
-# Window 1: Monitor
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 30
-
-# Window 2: Light traffic
-.\Simulate-AVDUserTraffic.ps1 -Duration 15 -WorkloadType Light
+cd C:\AVDMonitoring
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
 ```
 
-**Expected results:**
-- Low latency (<50ms)
-- No packet loss
-- No errors in CSV
-
-### Medium Testing (30-60 minutes)
-
-**Purpose:** Realistic workload simulation
-
+**Recommended: With Connection Quality Score (easier trend analysis):**
 ```powershell
-# Window 1: Monitor with alerts
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -AlertOnFailure
-
-# Window 2: Medium traffic with video
-.\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Medium -IncludeVideo
+cd C:\AVDMonitoring
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure -IncludeQualityScore
 ```
 
-**Expected results:**
-- Moderate latency (50-100ms)
-- Possible slight jitter
-- Should remain stable
+**What the `-IncludeQualityScore` does:**
+- Adds a single 0-100 score combining latency, jitter, packet loss, and DNS time
+- Makes trends easier to spot in Excel
+- Adds two columns to CSV: `QualityScore` and `QualityRating`
+- Shows quality in console: `Connection Quality: 88/100 (Good)`
 
-### Heavy Testing (15-30 minutes)
+**User continues working normally**
 
-**Purpose:** Stress testing to expose weaknesses
+**When disconnect occurs:**
+1. Note the exact time (e.g., 2:15 PM)
+2. Press **Ctrl+C** to stop the script
+3. Open the CSV file on Desktop: `AVD-Network-Monitor.csv`
+4. Look for issues around 2:15 PM in the "Notes" column
+
+**Duration:** Run as long as needed (typically 2-8 hours)
+
+---
+
+### Scenario 2: Controlled Testing (Both Scripts)
+
+**Use case:** Reproduce issues in test environment or force problems to appear
+
+**Setup requires 3 PowerShell windows:**
+
+#### Window 1 - Monitor (on client/laptop)
 
 ```powershell
-# Window 1: Monitor frequently
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 15 -AlertOnFailure
+cd C:\AVDMonitoring
 
-# Window 2: Heavy workload
-.\Simulate-AVDUserTraffic.ps1 -Duration 15 -WorkloadType Heavy -IncludeVideo
-
-# Window 3 (Optional): Add network stress
-.\Simulate-NetworkStress.ps1 -StressType All -Duration 10
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 15 -AlertOnFailure
 ```
 
+**Leave this running - it will show real-time status**
+
+#### Window 2 - Connect to AVD
+
+1. Open your AVD client or web browser
+2. Connect to your AVD session
+3. Open PowerShell **inside the AVD session**
+
+#### Window 3 - Traffic Simulation (inside AVD session)
+
+```powershell
+# Inside the AVD session, navigate to where you copied the scripts
+cd C:\AVDMonitoring  # or wherever you put them
+
+# Run the traffic simulation
+.\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Mixed -IncludeVideo
+```
+
+**Duration:** Typically 15-30 minutes
+
+**What to watch:**
+- Window 1 shows network metrics changing
+- Red alerts appear when issues detected
+- CSV logs everything automatically
+
+**When complete:**
+1. Stop the monitor (Ctrl+C in Window 1)
+2. Open CSV file on Desktop
+3. Analyze the results
+
+---
+
+### Scenario 3: Quick Validation Test
+
+**Use case:** Verify scripts work before deploying to users
+
+**On your laptop:**
+
+```powershell
+cd C:\AVDMonitoring
+
+# Test against any reachable host (not AVD-specific)
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "microsoft.com" -IntervalSeconds 10
+```
+
+**Let it run for 2-3 minutes**
+
 **Expected results:**
-- Higher latency (100-150ms)
-- Possible packet loss under WiFi
-- May expose UDP issues
+- Console shows connectivity checks
+- CSV file created on Desktop
+- Ping shows low latency
+- TCP 3389 will show "Closed" (normal for microsoft.com)
+
+**Stop with Ctrl+C**
+
+If this works, your environment is ready for real testing.
+
+---
+
+## Common Scenarios
 
 ### WiFi vs Wired Comparison
 
-**Purpose:** Isolate WiFi as root cause
-
+**Test 1 - On WiFi:**
 ```powershell
-# Test 1: On WiFi
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\avd-wifi.csv" -AlertOnFailure
-# Run for 30 minutes with normal usage
-
-# Test 2: On Ethernet (switch connection)
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\avd-wired.csv" -AlertOnFailure
-# Run for 30 minutes with same usage patterns
-
-# Compare the two CSV files
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\wifi-test.csv" -AlertOnFailure
 ```
+Run for 30 minutes with normal usage or traffic simulation
+
+**Test 2 - On Wired (Ethernet):**
+```powershell
+# Disconnect WiFi, connect Ethernet cable
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\wired-test.csv" -AlertOnFailure
+```
+Run for 30 minutes with same usage pattern
+
+**Compare the two CSV files**
+
+---
 
 ### VPN Testing
 
-**Purpose:** Determine if VPN causes issues
-
+**Test 1 - With VPN:**
 ```powershell
-# Test 1: With VPN connected
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\avd-vpn.csv" -AlertOnFailure
+# Connect VPN first
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\vpn-test.csv" -AlertOnFailure
+```
 
-# Test 2: Without VPN (direct internet)
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\avd-direct.csv" -AlertOnFailure
+**Test 2 - Without VPN:**
+```powershell
+# Disconnect VPN
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 20 -LogPath "Desktop\direct-test.csv" -AlertOnFailure
+```
 
-# Compare results
+**Compare results**
+
+---
+
+### Stress Testing
+
+**Force maximum load to find breaking points:**
+
+**Window 1 - Monitor with fast checks:**
+```powershell
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 10 -AlertOnFailure
+```
+
+**Window 2 - Heavy simulation inside AVD:**
+```powershell
+.\Simulate-AVDUserTraffic.ps1 -Duration 20 -WorkloadType Heavy -IncludeVideo
 ```
 
 ---
 
-## Analyzing Results
+## Understanding the Output
 
-### Understanding the CSV Log
-
-**File location:** `C:\Users\YourName\Desktop\AVD-Network-Monitor.csv`
-
-**Key columns:**
-
-| Column | What It Means | Good Value | Bad Value |
-|--------|---------------|------------|-----------|
-| **AvgRTT_ms** | Average latency | <50ms | >150ms |
-| **PacketLoss_%** | Lost packets | 0% | >0% |
-| **TCP3389** | RDP port status | Open | Closed/Blocked |
-| **TotalErrors** | NIC packet errors | 0 or stable | Increasing |
-| **WiFiSignal** | Signal strength | >70% | <50% |
-| **Notes** | Auto-detected issues | OK | Any flag |
-
-### Common Issue Patterns
-
-#### Pattern 1: High Latency Before Disconnect
+### Monitor Console Output
 
 ```
-13:45:00 - AvgRTT: 45ms, Notes: OK
-13:46:30 - AvgRTT: 125ms, Notes: HIGH_LATENCY(125ms)
-13:48:00 - AvgRTT: 187ms, Notes: HIGH_LATENCY(187ms), HIGH_JITTER(95ms)
-13:49:15 - AvgRTT: 215ms, PacketLoss: 3%, Notes: HIGH_LATENCY(215ms), PACKET_LOSS(3%)
-13:50:30 - [USER REPORTS DISCONNECT]
+[2025-11-18 14:30:15] Checking connectivity (Iteration #5)...
+  └─ DNS Resolution: 23.4 ms
+  └─ Ping: SUCCESS | Avg: 45 ms | Min: 42 ms | Max: 52 ms | Loss: 0%
+  └─ TCP 3389 (RDP): Open
+  └─ UDP 3390 (Shortpath): Not testable from client
+  └─ Adapter: Wi-Fi | Status: Up | Speed: 866.7 Mbps
+  └─ Packet Errors: Received=0, Sent=0, Total=0
+  └─ WiFi Signal: 72%
+  └─ Connection Quality: 88/100 (Good)
+  ✓ All connectivity checks passed
 ```
 
-**Diagnosis:** Network congestion or bandwidth issue
-**Action:** Check for competing traffic, ISP issues, or QoS policies
+**Note:** Connection Quality Score appears only if you use `-IncludeQualityScore` parameter.
 
-#### Pattern 2: WiFi Signal Degradation
+**Key indicators:**
 
+✅ **Green text** = Good  
+⚠️ **Yellow text** = Warning  
+❌ **Red text** = Problem
+
+### Connection Quality Score (Optional Feature)
+
+**To enable:** Add `-IncludeQualityScore` parameter when starting the script
+
+**What it does:** Combines latency, packet loss, jitter, and DNS time into a single 0-100 score
+
+#### Score Ranges
+
+| Score | Rating | Color | Meaning |
+|-------|--------|-------|---------|
+| **90-100** | Excellent | Green | Optimal AVD performance |
+| **75-89** | Good | Green | Acceptable for most work |
+| **60-74** | Fair | Yellow | Noticeable slowness |
+| **40-59** | Poor | Red | Significant lag/issues |
+| **0-39** | Critical | Red | Unusable/about to disconnect |
+
+#### How It's Calculated
+
+The score is weighted based on importance to AVD performance:
+
+| Component | Weight | Excellent | Good | Fair | Poor |
+|-----------|--------|-----------|------|------|------|
+| **Latency** | 40 points | <30ms | <100ms | <150ms | >150ms |
+| **Packet Loss** | 30 points | 0% | 0% | >0% | >2% |
+| **Jitter** | 20 points | <20ms | <50ms | <100ms | >100ms |
+| **DNS Time** | 10 points | <50ms | <200ms | <500ms | >500ms |
+
+#### Why Use It?
+
+**Easier trend analysis:**
 ```
-10:15:00 - WiFiSignal: 85%, Notes: OK
-10:30:00 - WiFiSignal: 72%, Notes: OK
-10:45:00 - WiFiSignal: 48%, Notes: WEAK_WIFI_SIGNAL(48%)
-11:00:00 - WiFiSignal: 42%, PacketLoss: 2%, Notes: WEAK_WIFI_SIGNAL(42%), PACKET_LOSS(2%)
-11:15:00 - [USER REPORTS DISCONNECT]
-```
+Without Quality Score (4 metrics to watch):
+14:00 - Latency: 45ms, Loss: 0%, Jitter: 8ms, DNS: 25ms
+14:15 - Latency: 120ms, Loss: 1%, Jitter: 65ms, DNS: 180ms  ← Is this bad?
 
-**Diagnosis:** WiFi roaming, distance from AP, or interference
-**Action:** Move closer to AP, switch to 5GHz band, or use wired connection
-
-#### Pattern 3: Packet Errors Accumulating
-
-```
-09:00:00 - TotalErrors: 0, Notes: OK
-09:30:00 - TotalErrors: 0, Notes: OK
-10:00:00 - TotalErrors: 5, Notes: NEW_PACKET_ERRORS(+5)
-10:30:00 - TotalErrors: 18, Notes: NEW_PACKET_ERRORS(+13)
-11:00:00 - TotalErrors: 45, Notes: NEW_PACKET_ERRORS(+27)
-```
-
-**Diagnosis:** Network adapter driver or hardware issue
-**Action:** Update NIC drivers, check hardware, disable power management
-
-#### Pattern 4: DNS Resolution Failures
-
-```
-14:20:00 - DNSResolution_ms: 25, Notes: OK
-14:21:30 - DNSResolution_ms: 450, Notes: SLOW_DNS(450ms)
-14:23:00 - DNSResolution_ms: Failed, Notes: DNS_RESOLUTION_FAILED
-14:24:30 - DNSResolution_ms: Failed, Notes: DNS_RESOLUTION_FAILED
-```
-
-**Diagnosis:** DNS server issue or network path problem
-**Action:** Change DNS servers, check firewall rules, verify network connectivity
-
-#### Pattern 5: Intermittent Spikes (Firewall Timeout)
-
-```
-11:00:00 - AvgRTT: 35ms, Notes: OK
-11:30:00 - AvgRTT: 38ms, Notes: OK
-12:00:00 - TCP3389: Closed/Blocked, Notes: TCP_3389_BLOCKED
-12:01:30 - TCP3389: Open, Notes: OK
-12:30:00 - AvgRTT: 42ms, Notes: OK
-13:00:00 - TCP3389: Closed/Blocked, Notes: TCP_3389_BLOCKED
+With Quality Score (1 metric):
+14:00 - Quality: 92 (Excellent)
+14:15 - Quality: 58 (Poor)  ← Clearly degrading!
 ```
 
-**Diagnosis:** Stateful firewall dropping "idle" UDP sessions
-**Action:** Adjust firewall UDP timeout settings (increase to 300+ seconds)
+**Quick Excel charting:** Graph one column instead of four
 
-### Correlation with Azure Logs
+**At-a-glance health:** See connection status immediately
 
-1. **Export Log Analytics data** for the same time period:
-   ```kusto
-   WVDConnections
-   | where TimeGenerated between (datetime('2025-11-18 13:00') .. datetime('2025-11-18 14:00'))
-   | where UserName == "affected.user@domain.com"
-   | project TimeGenerated, State, Errors
-   ```
+#### Example Usage
 
-2. **Compare timestamps** between CSV and Azure logs
+```powershell
+# Without quality score
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -AlertOnFailure
 
-3. **Look for matching patterns:**
-   - Azure shows `ShortpathTransportNetworkDrop`
-   - CSV shows high jitter or packet loss at same time
-   - **Confirms:** Network instability causing UDP drops
+# With quality score (recommended)
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -AlertOnFailure -IncludeQualityScore
+```
 
-### Using Excel for Analysis
+---
 
-1. **Open CSV in Excel**
+### CSV Log File
 
-2. **Create PivotTable** or charts:
-   - Time series of AvgRTT_ms
-   - Packet loss percentage over time
-   - WiFi signal trends
+**Location:** `C:\Users\YourName\Desktop\AVD-Network-Monitor.csv`
 
-3. **Filter by Notes column** to find issues:
-   - Filter for "HIGH_LATENCY"
-   - Filter for "PACKET_LOSS"
-   - Filter for "WEAK_WIFI_SIGNAL"
+**Open with:** Excel, Notepad, or any CSV viewer
 
-4. **Identify patterns:**
-   - Time of day correlations
-   - Gradual degradation vs sudden failures
-   - Cyclic issues (every 30 min = firewall timeout)
+**Key columns to watch:**
+
+| Column | Good Value | Bad Value |
+|--------|------------|-----------|
+| **AvgRTT_ms** | < 50 | > 150 |
+| **PacketLoss_%** | 0 | > 0 |
+| **TotalErrors** | 0 (stable) | Increasing |
+| **WiFiSignal** | > 70% | < 50% |
+| **QualityScore*** | > 75 | < 60 |
+| **QualityRating*** | Excellent/Good | Fair/Poor/Critical |
+| **Notes** | OK | HIGH_LATENCY, PACKET_LOSS |
+
+_*Only appears if using `-IncludeQualityScore` parameter_
+
+### Traffic Simulation Output
+
+```
+╔════════════════════════════════════════════════════════════════╗
+║         AVD User Traffic Simulation                          ║
+╚════════════════════════════════════════════════════════════════╝
+
+Workload Type: Mixed
+Duration:      30 minutes
+
+═══════════════════════════════════════════════════════════════
+Iteration #1 - Time remaining: 29.5 minutes
+═══════════════════════════════════════════════════════════════
+
+[14:00:05] Simulating web browsing...
+  └─ Fetching: https://www.microsoft.com
+     Response: 200 - 156743 bytes
+  ✓ Complete
+
+[14:00:25] Simulating file operations...
+  └─ Creating file 1 of 10...
+  ✓ File operations complete
+```
+
+**This is normal** - just shows what activities are running
 
 ---
 
 ## Troubleshooting
 
-### Script Won't Start
-
-**Error:** "Cannot be loaded because running scripts is disabled"
+### Problem: "Running scripts is disabled"
 
 **Solution:**
 ```powershell
@@ -436,433 +453,306 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
 .\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host"
 ```
 
-### Can't Resolve Session Host
+---
 
-**Error:** DNS resolution shows "Failed"
+### Problem: "Cannot resolve hostname"
 
-**Solutions:**
-1. Verify FQDN is correct from Log Analytics
-2. Try using IP address instead:
-   ```powershell
-   .\Monitor-AVDConnection.ps1 -SessionHostFQDN "10.20.30.40"
-   ```
-3. Check if connected to correct network (VPN if required)
-4. Verify DNS server settings
+**Check if FQDN is correct:**
+```powershell
+# Test DNS resolution
+nslookup host.domain.com
+```
 
-### No CSV File Created
+**If DNS fails:**
+- Verify the FQDN from Log Analytics
+- Check if you need VPN connected
+- Try using IP address instead
 
-**Problem:** Script runs but no log file appears
+---
 
-**Solutions:**
-1. Check Desktop permissions
-2. Specify alternate location:
-   ```powershell
-   .\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -LogPath "C:\Temp\avd.csv"
-   ```
-3. Run PowerShell as Administrator
+### Problem: Script starts but no CSV file
 
-### TCP 3389 Always Shows "Closed/Blocked"
+**Check permissions:**
+```powershell
+# Try writing to Desktop
+"test" | Out-File "$env:USERPROFILE\Desktop\test.txt"
+```
 
-**If testing against non-RDP host (like microsoft.com):**
-- This is **expected** - use actual AVD session host instead
+**If that fails, specify alternate location:**
+```powershell
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -LogPath "C:\Temp\avd.csv"
+```
+
+---
+
+### Problem: TCP 3389 shows "Closed/Blocked"
+
+**If testing against microsoft.com:**
+- This is **normal** - microsoft.com doesn't have RDP open
+- Use actual AVD session host FQDN instead
 
 **If testing against actual AVD host:**
+- Verify session host is running (check Azure Portal)
 - Check NSG rules allow RDP from your IP
-- Verify session host is running
 - Try from different network location
 - May indicate firewall blocking
 
-### Script Shows High Latency But AVD Seems Fine
+---
 
-**Possible causes:**
-1. Testing against wrong host (verify FQDN)
-2. Network path to test host differs from AVD path
-3. ICMP (ping) being deprioritized by network
-4. Background processes causing momentary spikes
+### Problem: High CPU/Memory from simulation
 
-**Validation:**
-- Test from multiple client machines
-- Compare with Azure Monitor metrics
-- Run traceroute to identify hop with latency
-
-### Memory/CPU Usage Too High
-
-**If simulation scripts consume too much:**
-
-**Adjust workload:**
+**Reduce workload intensity:**
 ```powershell
-# Reduce intensity
+# Use Light workload instead
 .\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Light
 
-# Increase intervals
+# Or increase check interval
 .\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 60
 ```
 
 ---
 
-## Advanced Usage
+### Problem: Script hangs on "Attempting TCP connect"
 
-### Custom Monitoring Intervals
+**This is normal** - Test-NetConnection has a timeout (about 20 seconds)
 
-**Faster checks (every 10 seconds) for detailed capture:**
+**Wait for it to complete** or reduce check frequency:
 ```powershell
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 10
-```
-
-**Slower checks (every 60 seconds) for long-term trends:**
-```powershell
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 60
-```
-
-### Multiple Session Hosts
-
-**Monitor multiple hosts simultaneously:**
-
-```powershell
-# Window 1
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host1.domain.com" -LogPath "Desktop\host1.csv"
-
-# Window 2
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host2.domain.com" -LogPath "Desktop\host2.csv"
-
-# Window 3
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host3.domain.com" -LogPath "Desktop\host3.csv"
-```
-
-### Automated Daily Monitoring
-
-**Create scheduled task to run monitoring during business hours:**
-
-```powershell
-# Create script wrapper
-$ScriptBlock = @'
-cd C:\AVDMonitoring
-$Date = Get-Date -Format "yyyy-MM-dd"
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com" -LogPath "C:\Logs\avd-$Date.csv" -IntervalSeconds 30
-'@
-
-$ScriptBlock | Out-File "C:\AVDMonitoring\Start-Monitoring.ps1"
-
-# Create scheduled task (run as user, 8 AM - 5 PM daily)
-$Trigger = New-ScheduledTaskTrigger -Daily -At 8AM
-$Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-File C:\AVDMonitoring\Start-Monitoring.ps1"
-Register-ScheduledTask -TaskName "AVD Network Monitoring" -Trigger $Trigger -Action $Action -User $env:USERNAME
-```
-
-### Integration with Azure Monitor
-
-**Upload logs to Log Analytics for centralized analysis:**
-
-```powershell
-# After collecting CSV logs
-$WorkspaceId = "your-workspace-id"
-$SharedKey = "your-workspace-key"
-$LogType = "AVDClientMonitoring"
-
-# Parse CSV and upload (requires additional scripting)
-# See Azure Monitor HTTP Data Collector API documentation
-```
-
-### Email Alerts on Issues
-
-**Add email notification when problems detected:**
-
-```powershell
-# Modify Monitor-AVDConnection.ps1 to include:
-if ($hasIssue) {
-    Send-MailMessage -To "admin@company.com" `
-        -From "avd-monitor@company.com" `
-        -Subject "AVD Connectivity Issue Detected" `
-        -Body "Issue detected at $timestamp: $notesString" `
-        -SmtpServer "smtp.company.com"
-}
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 30
+# Gives more time between checks
 ```
 
 ---
 
-## FAQ
+## Quick Reference Commands
 
-### Q: Can this script fix connectivity issues?
-
-**A:** No, this is a **diagnostic tool** only. It identifies when and what type of issues occur, but doesn't fix them. Use the data to identify root causes and apply appropriate fixes.
-
-### Q: Does this require administrator privileges?
-
-**A:** Not required for basic functionality, but recommended for full network adapter statistics and some diagnostic capabilities.
-
-### Q: Will this impact AVD session performance?
-
-**A:** Minimal impact. The monitor runs on the **client machine** (not in AVD session) and uses lightweight network tests (ping, DNS lookups). It should not affect session performance.
-
-### Q: How long should I run the monitoring?
-
-**A:** 
-- **Minimum:** 30 minutes during typical work
-- **Recommended:** Full workday (8+ hours)
-- **Ideal:** Multiple days to capture patterns
-
-### Q: Can I run this on Mac or Linux?
-
-**A:** No, these are PowerShell scripts for Windows clients. Mac/Linux users would need different tools (ping, traceroute, tcpdump, etc.)
-
-### Q: What if UDP port 3390 is blocked by our firewall?
-
-**A:** This is likely causing your `ShortpathTransportNetworkDrop` errors. Work with network team to:
-1. Allow UDP port 3390 outbound
-2. Set firewall UDP timeout to 300+ seconds
-3. Ensure stateful firewalls don't drop "idle" UDP sessions
-
-### Q: The script says "UDP 3390: Not testable from client" - why?
-
-**A:** UDP port testing requires sending actual UDP packets and waiting for responses, which isn't reliably possible with standard PowerShell cmdlets. The script uses ping jitter and packet loss as proxy indicators for UDP health.
-
-### Q: Can this detect if my VPN is causing issues?
-
-**A:** Yes, run the monitor with VPN connected and disconnected, then compare the CSV logs. Look for differences in latency, packet loss, and connection stability.
-
-### Q: What's a "good" latency for AVD?
-
-**A:**
-- **Excellent:** <30ms
-- **Good:** 30-100ms
-- **Acceptable:** 100-150ms
-- **Poor:** 150-200ms
-- **Unusable:** >200ms
-
-### Q: How do I stop the monitoring script?
-
-**A:** Press **Ctrl+C** in the PowerShell window. The CSV log will be saved with all data collected up to that point.
-
-### Q: Can I modify the scripts?
-
-**A:** Yes, they're open source. Common modifications:
-- Add custom tests
-- Change alert thresholds
-- Integrate with monitoring systems
-- Add email notifications
-
-### Q: What causes ShortpathTransportNetworkDrop errors?
-
-**A:** Common causes:
-1. **Firewall UDP timeout** (most common) - firewall drops UDP after 30-120s
-2. **WiFi issues** - signal degradation, roaming, interference
-3. **VPN blocking UDP** - VPN clients often block or poorly handle UDP
-4. **ISP CGNAT** - Carrier-grade NAT with aggressive UDP timeouts
-5. **Network congestion** - High packet loss affecting UDP more than TCP
-
-### Q: Should I disable RDP Shortpath?
-
-**A:** Only as a **temporary workaround**. Shortpath (UDP) provides better performance than TCP fallback. Better to fix the underlying network issue. To disable:
-
+### Basic Monitoring
 ```powershell
-# On client machine
-reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\Client" /v fClientDisableUDP /t REG_DWORD /d 1 /f
-```
+# Start monitoring
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com"
 
-### Q: How much data does the monitoring generate?
+# With alerts
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com" -AlertOnFailure
 
-**A:** Very minimal:
-- CSV file: ~1KB per hour (~8KB per day)
-- Network traffic: ~1MB per hour (mostly ping packets)
+# With connection quality score
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com" -IncludeQualityScore
 
-### Q: Can I run this 24/7?
+# With both alerts and quality score
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com" -AlertOnFailure -IncludeQualityScore
 
-**A:** Yes, but typically not needed. Focus on:
-- Business hours when users are active
-- Times when issues are reported
-- Comparison testing (WiFi vs wired, VPN vs direct)
-
----
-
-## Command Reference
-
-### Monitor-AVDConnection.ps1
-
-```powershell
-.\Monitor-AVDConnection.ps1 
-    -SessionHostFQDN <string>      # Required: FQDN or IP of AVD session host
-    -IntervalSeconds <int>         # Optional: Check frequency (default: 30)
-    -LogPath <string>              # Optional: CSV log location (default: Desktop)
-    -AlertOnFailure                # Optional: Show prominent alerts on issues
-```
-
-**Examples:**
-
-```powershell
-# Basic usage
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com"
-
-# With alerts and frequent checks
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 15 -AlertOnFailure
+# Custom interval (every 15 seconds)
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com" -IntervalSeconds 15
 
 # Custom log location
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -LogPath "C:\Logs\avd-monitor.csv"
-```
-
-### Test-MonitoringScript.ps1
-
-```powershell
-.\Test-MonitoringScript.ps1
-```
-
-No parameters needed. Validates environment and shows pre-flight check results.
-
-### Simulate-AVDUserTraffic.ps1
-
-```powershell
-.\Simulate-AVDUserTraffic.ps1 
-    -Duration <int>               # Optional: Run time in minutes (default: 30)
-    -WorkloadType <string>        # Optional: Light|Medium|Heavy|Mixed (default: Mixed)
-    -IncludeVideo                 # Optional: Add video streaming simulation
-```
-
-**Examples:**
-
-```powershell
-# Light workload for 15 minutes
-.\Simulate-AVDUserTraffic.ps1 -Duration 15 -WorkloadType Light
-
-# Heavy workload with video
-.\Simulate-AVDUserTraffic.ps1 -Duration 20 -WorkloadType Heavy -IncludeVideo
-
-# Mixed workload (default)
-.\Simulate-AVDUserTraffic.ps1 -Duration 30
-```
-
-### Simulate-NetworkStress.ps1
-
-```powershell
-.\Simulate-NetworkStress.ps1 
-    -StressType <string>          # Optional: Bandwidth|Connections|DNS|Burst|All (default: All)
-    -Duration <int>               # Optional: Run time in minutes (default: 10)
-```
-
-**Examples:**
-
-```powershell
-# All stress types
-.\Simulate-NetworkStress.ps1 -StressType All -Duration 10
-
-# Bandwidth stress only
-.\Simulate-NetworkStress.ps1 -StressType Bandwidth -Duration 15
-```
-
----
-
-## Additional Resources
-
-### Microsoft Documentation
-
-- [RDP Shortpath Overview](https://learn.microsoft.com/azure/virtual-desktop/rdp-shortpath)
-- [AVD Network Connectivity](https://learn.microsoft.com/azure/virtual-desktop/network-connectivity)
-- [Troubleshooting AVD Connections](https://learn.microsoft.com/azure/virtual-desktop/troubleshoot-client-connection)
-
-### Log Analytics Queries
-
-**Find ShortpathTransportNetworkDrop errors:**
-```kusto
-WVDConnections
-| where TimeGenerated > ago(7d)
-| where Errors contains "ShortpathTransportNetworkDrop"
-| project TimeGenerated, UserName, SessionHostName, ClientIPAddress, Errors
-| order by TimeGenerated desc
-```
-
-**Connection success rate by user:**
-```kusto
-WVDConnections
-| where TimeGenerated > ago(7d)
-| summarize Total=count(), Failed=countif(State=="Failed") by UserName
-| extend SuccessRate = round((Total-Failed)*100.0/Total, 2)
-| order by SuccessRate asc
-```
-
-### Network Requirements
-
-**Ports required for AVD:**
-- TCP 443 (HTTPS) - Control plane
-- TCP 3389 (RDP) - Fallback data plane
-- UDP 3390 (RDP Shortpath) - Preferred data plane
-
-**Bandwidth recommendations:**
-- Light usage: 1.5 Mbps
-- Office productivity: 3-4 Mbps
-- Power users / video: 5-10 Mbps
-
----
-
-## Support and Contributing
-
-### Getting Help
-
-If you encounter issues with these scripts:
-
-1. Run `Test-MonitoringScript.ps1` to validate environment
-2. Check PowerShell version: `$PSVersionTable.PSVersion`
-3. Verify cmdlet availability: `Get-Command Test-NetConnection`
-4. Review error messages carefully
-5. Check execution policy: `Get-ExecutionPolicy`
-
-### Feedback
-
-For script improvements or issues:
-- Document the specific error or unexpected behavior
-- Include PowerShell version and Windows version
-- Provide sample output or error messages
-- Describe expected vs actual behavior
-
----
-
-## Version History
-
-**v1.0** (2025-11-18)
-- Initial release
-- Basic network monitoring
-- Traffic simulation
-- Stress testing tools
-- Pre-flight validation
-
----
-
-## License
-
-These scripts are provided as-is for diagnostic purposes. Use at your own risk. Always test in non-production environments first.
-
----
-
-## Quick Reference Card
-
-### Common Commands
-
-```powershell
-# Validate setup
-.\Test-MonitoringScript.ps1
-
-# Start monitoring
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host" -IntervalSeconds 30 -AlertOnFailure
-
-# Simulate user traffic (in AVD session)
-.\Simulate-AVDUserTraffic.ps1 -Duration 20 -WorkloadType Mixed -IncludeVideo
-
-# Stress test network
-.\Simulate-NetworkStress.ps1 -StressType All -Duration 10
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "your-host.domain.com" -LogPath "C:\Logs\test.csv"
 
 # Stop monitoring
 Press Ctrl+C
 ```
 
-### Key Files
+### Traffic Simulation (Inside AVD)
+```powershell
+# Light workload
+.\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Light
 
-- **Monitor CSV:** `Desktop\AVD-Network-Monitor.csv`
-- **Scripts:** `C:\AVDMonitoring\*.ps1`
+# Medium workload
+.\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Medium
 
-### Key Metrics
+# Heavy with video
+.\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Heavy -IncludeVideo
 
-- **RTT:** <50ms good, >150ms poor
-- **Packet Loss:** 0% only
-- **WiFi Signal:** >70% good, <50% poor
-- **Jitter:** <50ms good, >100ms poor
+# Mixed (default)
+.\Simulate-AVDUserTraffic.ps1 -Duration 30
+
+# Stop simulation
+Press Ctrl+C
+```
+
+### Validation
+```powershell
+# Pre-flight check
+.\Test-MonitoringScript.ps1
+
+# Check PowerShell version
+$PSVersionTable.PSVersion
+
+# Test basic connectivity
+Test-NetConnection -ComputerName your-host.domain.com -Port 3389
+```
 
 ---
 
-**End of Guide**
+## Typical Test Workflow
+
+### 1. Initial Setup (5 minutes)
+```powershell
+# Download scripts to C:\AVDMonitoring
+cd C:\AVDMonitoring
+
+# Unblock scripts
+Get-ChildItem *.ps1 | Unblock-File
+
+# Validate environment
+.\Test-MonitoringScript.ps1
+```
+
+### 2. Get Session Host FQDN (2 minutes)
+- Run Log Analytics query
+- Copy the SessionHostName
+- Example: `host.domain.com`
+
+### 3. Quick Test (5 minutes)
+```powershell
+# Test against microsoft.com first
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "microsoft.com" -IntervalSeconds 10
+# Let run 2-3 minutes
+# Press Ctrl+C
+# Verify CSV created on Desktop
+```
+
+### 4. Real Test - Monitoring Only (30+ minutes)
+```powershell
+# Start monitoring
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
+
+# User works normally
+# When issue occurs, note time and press Ctrl+C
+# Review CSV file
+```
+
+### 5. Real Test - With Simulation (30 minutes)
+```powershell
+# Window 1 - On laptop
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 15 -AlertOnFailure
+
+# Window 2 - Inside AVD session
+.\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Mixed -IncludeVideo
+
+# Let both complete
+# Review CSV file for correlation
+```
+
+---
+
+## What to Look For in Results
+
+### Healthy Connection
+```csv
+Timestamp,AvgRTT_ms,PacketLoss_%,TotalErrors,WiFiSignal,QualityScore,QualityRating,Notes
+14:00:00,45,0,0,75%,92,Excellent,OK
+14:00:30,48,0,0,74%,90,Excellent,OK
+14:01:00,42,0,0,76%,94,Excellent,OK
+```
+
+### Problem Pattern - WiFi Degradation
+```csv
+14:10:00,52,0,0,68%,85,Good,OK
+14:10:30,85,0,0,54%,68,Fair,OK
+14:11:00,145,0,0,45%,42,Poor,HIGH_LATENCY(145ms),WEAK_WIFI_SIGNAL(45%)
+14:11:30,198,2,0,42%,28,Critical,HIGH_LATENCY(198ms),PACKET_LOSS(2%),WEAK_WIFI_SIGNAL(42%)
+14:12:00,N/A,100,0,N/A,0,Critical,PING_FAILED  ← DISCONNECT
+```
+
+**Notice:** Quality score drops from 85 (Good) to 28 (Critical) before disconnect
+
+### Problem Pattern - Firewall Timeout
+```csv
+11:00:00,38,0,0,N/A,OK
+11:30:00,40,0,0,N/A,OK
+12:00:00,42,0,0,N/A,OK
+12:30:00,38,0,0,N/A,TCP_3389_BLOCKED  ← Firewall dropped "idle" connection
+12:31:00,40,0,0,N/A,OK  ← Reconnected
+```
+
+### Problem Pattern - Network Adapter Errors
+```csv
+09:00:00,45,0,0,N/A,OK
+09:30:00,48,0,5,N/A,NEW_PACKET_ERRORS(+5)
+10:00:00,52,0,18,N/A,NEW_PACKET_ERRORS(+13)
+10:30:00,145,2,45,N/A,HIGH_LATENCY(145ms),PACKET_LOSS(2%),NEW_PACKET_ERRORS(+27)
+```
+
+---
+
+## Next Steps After Testing
+
+### If You Found Issues
+
+1. **Document the pattern** from CSV
+2. **Correlate with Azure Log Analytics** for same timeframe
+3. **Apply appropriate fix:**
+   - WiFi issues → Switch to wired or improve WiFi
+   - Firewall timeout → Adjust UDP timeout settings
+   - VPN issues → Exclude AVD traffic from VPN tunnel
+   - Adapter errors → Update drivers, check hardware
+
+### If No Issues Found
+
+1. **Extend monitoring duration** (run for full workday)
+2. **Test during problem hours** (if issues are time-specific)
+3. **Increase simulation intensity** (use Heavy workload)
+4. **Test different scenarios** (WiFi vs wired, VPN vs direct)
+
+---
+
+## Support Information
+
+### Getting Help
+
+If scripts don't work:
+1. Run `.\Test-MonitoringScript.ps1` and share output
+2. Check PowerShell version: `$PSVersionTable.PSVersion`
+3. Verify cmdlets: `Get-Command Test-NetConnection`
+4. Review error messages carefully
+
+### File Locations
+
+- **Scripts:** `C:\AVDMonitoring\*.ps1`
+- **CSV Log:** `Desktop\AVD-Network-Monitor.csv`
+- **Temp files:** `%TEMP%\AVDTest\` (created by traffic simulation)
+
+### Additional Documentation
+
+- **Complete guide:** AVD-Monitoring-Guide.md
+- **Traffic simulation details:** Simulate-AVDUserTraffic-Guide.md
+- **This file:** Quick-Start-Guide.md
+
+---
+
+## Checklist
+
+Before you start, verify:
+
+- [ ] Scripts downloaded to `C:\AVDMonitoring`
+- [ ] Scripts unblocked: `Get-ChildItem *.ps1 | Unblock-File`
+- [ ] Validation passed: `.\Test-MonitoringScript.ps1`
+- [ ] Session host FQDN obtained from Log Analytics
+- [ ] Execution policy set (if needed)
+- [ ] PowerShell version 5.1 or higher
+
+For monitoring only:
+- [ ] Know the scenario: real user vs controlled test
+- [ ] Know duration needed
+- [ ] Have FQDN of session host
+
+For both scripts:
+- [ ] Monitor script ready on laptop
+- [ ] Traffic script copied to AVD session
+- [ ] Both unblocked in their respective locations
+
+---
+
+**You're ready to start monitoring!**
+
+**Most common command to start:**
+```powershell
+# Basic monitoring
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
+
+# Recommended: With quality score for easier trending
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure -IncludeQualityScore
+```
+
+**Tip:** Use `-IncludeQualityScore` to get a single 0-100 metric that's easier to chart in Excel!
+
+Good luck troubleshooting! 🚀
