@@ -133,7 +133,7 @@ WVDConnections
 | distinct SessionHostName
 ```
 
-**Example output:** `CONCDSYS-72cb.ad4.sfgov.org`
+**Example output:** `host.domain.com`
 
 ### Option 2: From Azure Portal
 
@@ -142,7 +142,7 @@ WVDConnections
 3. Click "Session hosts"
 4. Copy the Name (FQDN) of any session host
 
-**Example output:** `CONCDSYS-72cb.ad4.sfgov.org`
+**Example output:** `host.domain.com`
 
 ---
 
@@ -159,13 +159,13 @@ WVDConnections
 **Basic monitoring:**
 ```powershell
 cd C:\AVDMonitoring
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 30 -AlertOnFailure
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
 ```
 
 **Recommended: With Connection Quality Score (easier trend analysis):**
 ```powershell
 cd C:\AVDMonitoring
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 30 -AlertOnFailure -IncludeQualityScore
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure -IncludeQualityScore
 ```
 
 **What the `-IncludeQualityScore` does:**
@@ -197,7 +197,7 @@ cd C:\AVDMonitoring
 ```powershell
 cd C:\AVDMonitoring
 
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 15 -AlertOnFailure
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 15 -AlertOnFailure
 ```
 
 **Leave this running - it will show real-time status**
@@ -460,7 +460,7 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
 **Check if FQDN is correct:**
 ```powershell
 # Test DNS resolution
-nslookup CONCDSYS-72cb.ad4.sfgov.org
+nslookup host.domain.com
 ```
 
 **If DNS fails:**
@@ -599,7 +599,7 @@ Get-ChildItem *.ps1 | Unblock-File
 ### 2. Get Session Host FQDN (2 minutes)
 - Run Log Analytics query
 - Copy the SessionHostName
-- Example: `CONCDSYS-72cb.ad4.sfgov.org`
+- Example: `host.domain.com`
 
 ### 3. Quick Test (5 minutes)
 ```powershell
@@ -613,7 +613,7 @@ Get-ChildItem *.ps1 | Unblock-File
 ### 4. Real Test - Monitoring Only (30+ minutes)
 ```powershell
 # Start monitoring
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 30 -AlertOnFailure
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
 
 # User works normally
 # When issue occurs, note time and press Ctrl+C
@@ -623,7 +623,7 @@ Get-ChildItem *.ps1 | Unblock-File
 ### 5. Real Test - With Simulation (30 minutes)
 ```powershell
 # Window 1 - On laptop
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 15 -AlertOnFailure
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 15 -AlertOnFailure
 
 # Window 2 - Inside AVD session
 .\Simulate-AVDUserTraffic.ps1 -Duration 30 -WorkloadType Mixed -IncludeVideo
@@ -747,10 +747,10 @@ For both scripts:
 **Most common command to start:**
 ```powershell
 # Basic monitoring
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 30 -AlertOnFailure
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
 
 # Recommended: With quality score for easier trending
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 30 -AlertOnFailure -IncludeQualityScore
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure -IncludeQualityScore
 ```
 
 **Tip:** Use `-IncludeQualityScore` to get a single 0-100 metric that's easier to chart in Excel!

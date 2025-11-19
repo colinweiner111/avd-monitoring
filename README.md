@@ -1,4 +1,4 @@
-# Azure Virtual Desktop Network Monitoring Guide
+CONCDSYS-72cb.ad4.sfgov.org# Azure Virtual Desktop Network Monitoring Guide
 
 ## Overview
 
@@ -36,7 +36,7 @@ This guide provides tools and procedures for diagnosing intermittent Azure Virtu
 3. **Run the monitor:**
 
 ```powershell
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 30 -AlertOnFailure
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
 ```
 
 4. **Use AVD normally** or run traffic simulation
@@ -157,7 +157,7 @@ This guide provides tools and procedures for diagnosing intermittent Azure Virtu
 
 2. **Start monitoring:**
    ```powershell
-   .\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" -IntervalSeconds 30 -AlertOnFailure
+   .\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.com" -IntervalSeconds 30 -AlertOnFailure
    ```
 
 3. **Let it run** during work hours (or all day)
