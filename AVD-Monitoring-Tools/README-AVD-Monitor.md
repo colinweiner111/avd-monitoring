@@ -21,7 +21,7 @@ This PowerShell script monitors client-side network connectivity to Azure Virtua
 ### 1. Get Your Session Host FQDN
 From your Log Analytics query results, grab the `SessionHostName` value:
 ```
-Example: CONCDSYS-72cb.ad4.sfgov.org
+Example: host.domain.comDSYS-72cb.ad4.sfgov.org
 ```
 
 ### 2. Run the Script
@@ -32,7 +32,7 @@ Open PowerShell (doesn't need to be elevated) and run:
 cd ~\Downloads
 
 # Run with basic settings
-.\Monitor-AVDConnection.ps1 -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org"
+.\Monitor-AVDConnection.ps1 -SessionHostFQDN "host.domain.comDSYS-72cb.ad4.sfgov.org"
 ```
 
 ### 3. Let It Run
@@ -74,7 +74,7 @@ When a disconnection occurs:
 ### Full Example with All Options
 ```powershell
 .\Monitor-AVDConnection.ps1 `
-    -SessionHostFQDN "CONCDSYS-72cb.ad4.sfgov.org" `
+    -SessionHostFQDN "host.domain.comDSYS-72cb.ad4.sfgov.org" `
     -IntervalSeconds 20 `
     -LogPath "C:\Temp\avd-network.csv" `
     -AlertOnFailure
@@ -254,7 +254,7 @@ For AVD connectivity issues:
 
 ```
 Time: 09:15:30
-Target: CONCDSYS-72cb.ad4.sfgov.org
+Target: host.domain.comDSYS-72cb.ad4.sfgov.org
   └─ DNS Resolution: 45.2 ms
   └─ Ping: SUCCESS | Avg: 32 ms | Min: 28 ms | Max: 41 ms | Loss: 0%
   └─ TCP 3389 (RDP): Open
